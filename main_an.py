@@ -17,6 +17,7 @@ class videoFile:
 
 
 def select_video():
+    global panel
     root.file = filedialog.askopenfile(
         initialdir='path',
         title='select video file',
@@ -26,19 +27,30 @@ def select_video():
     )
     if '.avi' in root.file.name or '.mp4' in root.file.name:
         targetV.name = root.file.name
-        messagebox.showinfo(title="Selection Success", message="Video selection is successful.")
+
+        t_cap = cv.VideoCapture(targetV.name)
+        t_ret, t_frame = t_cap.read()
+        thumbnail = ImageTk.PhotoImage(Image.fromarray(cv.cvtColor(t_frame, cv.COLOR_BGR2RGB)))
+        if panel is None:
+            panel = Label(image=thumbnail)
+            panel.image = thumbnail
+            panel.pack()
+        else:
+            panel.configure(image=thumbnail)
+            panel.image = thumbnail
     else:
         messagebox.showinfo(title="Selection Fail", message="This is invalid file format. Please select avi or mp4"
                                                             "file.")
 
 
 def tracking_video(vfile):
+    global panel
+
     if vfile == "":
         messagebox.showinfo(title="Video Load Error", message="Please select video before tracking.")
         return
 
     cap = cv.VideoCapture(vfile)
-    panel = None
     # Parameters for lucas kanade optical flow
     lk_params = dict(winSize=(30, 30),
                      maxLevel=2,
@@ -60,6 +72,7 @@ def tracking_video(vfile):
     # Create a mask image for drawing purposes
     mask = np.zeros_like(old_frame)
     vector = np.array([0, 0])
+    cv.destroyWindow('Select Window')
     while cap.isOpened():
         ret, frame = cap.read()
         frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -82,15 +95,14 @@ def tracking_video(vfile):
             mask = cv.line(mask, (vector[0] + c, vector[1] + d), (c, d), color[i].tolist(), 2)
             frame = cv.circle(frame, (vector[0] + c, vector[1] + d), 5, color[i].tolist(), -1)
         img = cv.add(frame, mask)
-        # cv.imshow('frame', img)
         image = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         image = Image.fromarray(image)
         image_tk = ImageTk.PhotoImage(image)
 
         if panel is None:
-            panel = tkinter.Label(image=image_tk)
+            panel = Label(image=image_tk)
             panel.image = image_tk
-            panel.pack(side="left")
+            panel.pack()
         else:
             panel.configure(image=image_tk)
             panel.image = image_tk
@@ -98,8 +110,8 @@ def tracking_video(vfile):
         # Now update the previous frame and previous points
         old_gray = frame_gray.copy()
         points = good_new.reshape(-1, 1, 2)
-        if cv.waitKey(30) == ord('q'):
-            break
+        if cv.waitKey(30) == 27:
+            return
 
 
 def videoThreadStart():
@@ -110,9 +122,12 @@ def videoThreadStart():
 
 targetV = videoFile("")
 
+panel = None
+
 root = Tk()
-btn1 = Button(root, text="Select Video", command=select_video)
-btn2 = Button(root, text="Tracking", command=videoThreadStart)
+btn_frame = Frame(root)
+btn1 = Button(btn_frame, text="Select Video", command=select_video)
+btn2 = Button(btn_frame, text="Tracking", command=videoThreadStart)
 
 
 if __name__ == "__main__":
@@ -120,7 +135,8 @@ if __name__ == "__main__":
     root.geometry("1600x900+100+100")
     root.resizable(False, False)
 
-    btn1.pack()
-    btn2.pack()
+    btn_frame.pack(side=tkinter.BOTTOM)
+    btn1.grid(row=0, column=0)
+    btn2.grid(row=0, column=1)
 
     root.mainloop()
