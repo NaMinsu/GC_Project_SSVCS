@@ -49,7 +49,7 @@ def select_video():
                           from_=0, to_=runtime)
             timer.grid(row=0, column=0)
         else:
-            timer.configure(orient='horizontal', showvalue=True, from_=0, to_=runtime)
+            timer.configure(orient='horizontal', showvalue=False, from_=0, to_=runtime)
         if timeBox is None:
             timeBox = Label(timer_frame, text='00:00')
             timeBox.grid(row=0, column=1)
