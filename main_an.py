@@ -45,7 +45,8 @@ def select_video():
         num_frame = t_cap.get(cv.CAP_PROP_FRAME_COUNT)
         runtime = num_frame / fps
         if timer is None:
-            timer = Scale(timer_frame, orient='horizontal', showvalue=True, from_=0, to_=runtime)
+            timer = Scale(timer_frame, orient='horizontal', command=setCurrentTime, showvalue=False,
+                          from_=0, to_=runtime)
             timer.grid(row=0, column=0)
         else:
             timer.configure(orient='horizontal', showvalue=True, from_=0, to_=runtime)
@@ -141,7 +142,14 @@ def videoThreadStart():
     thread_video.start()
 
 
-def setVideoTime():
+def videoStop():
+    global isPlay
+
+    if targetV.name != "" and isPlay is True:
+        isPlay = False
+
+
+def setCurrentTime(self):
     global panel, timer, timeBox
 
     if targetV.name == "":
@@ -151,26 +159,21 @@ def setVideoTime():
         input_time = timer.get()
         minutes = int(input_time / 60)
         seconds = int(input_time % 60)
-        timeBox.configure(text=str.format("{0}:{1}", minutes, seconds))
+        timeBox.configure(text=str.format("{0}:{1}", str(minutes).zfill(2), str(seconds).zfill(2)))
 
         temp_cap = cv.VideoCapture(targetV.name)
-        temp_cap.set(cv.CAP_PROP_POS_MSEC, input_time * 1000)
-        ret_temp, frame_temp = temp_cap.read()
-        newthumb = ImageTk.PhotoImage(Image.fromarray(cv.cvtColor(frame_temp, cv.COLOR_BGR2RGB)))
-        if panel is None:
-            panel = Label(image=newthumb)
-            panel.image = newthumb
-            panel.pack()
-        else:
-            panel.configure(image=newthumb)
-            panel.image = newthumb
-
-
-def videoStop():
-    global isPlay
-
-    if targetV.name != "" and isPlay is True:
-        isPlay = False
+        time_end = int(temp_cap.get(cv.CAP_PROP_FRAME_COUNT) / temp_cap.get(cv.CAP_PROP_FPS))
+        if input_time < time_end:
+            temp_cap.set(cv.CAP_PROP_POS_MSEC, input_time * 1000)
+            ret_temp, frame_temp = temp_cap.read()
+            newthumb = ImageTk.PhotoImage(Image.fromarray(cv.cvtColor(frame_temp, cv.COLOR_BGR2RGB)))
+            if panel is None:
+                panel = Label(image=newthumb)
+                panel.image = newthumb
+                panel.pack()
+            else:
+                panel.configure(image=newthumb)
+                panel.image = newthumb
 
 
 targetV = videoFile("")
@@ -184,8 +187,7 @@ btn_frame = Frame(root)
 timer_frame = Frame(root)
 btn1 = Button(btn_frame, text="Select Video", command=select_video)
 btn2 = Button(btn_frame, text="Tracking", command=videoThreadStart)
-btn3 = Button(btn_frame, text="Setup Time", command=setVideoTime)
-btn4 = Button(btn_frame, text="Stop Video", command=videoStop)
+btn3 = Button(btn_frame, text="Stop Video", command=videoStop)
 
 
 if __name__ == "__main__":
@@ -198,6 +200,5 @@ if __name__ == "__main__":
     btn1.grid(row=0, column=0)
     btn2.grid(row=0, column=1)
     btn3.grid(row=0, column=2)
-    btn4.grid(row=0, column=3)
 
     root.mainloop()
