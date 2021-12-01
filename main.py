@@ -2,7 +2,7 @@ import cv2
 print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
-import GC_Project_SSVCS.main_sr as main_sr
+import Comparer.main_sr as main_sr
 
 # Yolo 로드
 def yolo(img):
