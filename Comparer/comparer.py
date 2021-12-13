@@ -36,10 +36,9 @@ def video_cap(video):
 
         elif ret == True:
             # 현재 기본 사진이 없기 떄문에 첫 캡쳐를 origin으로 저장
-            if (int(cap.get(1)) == 1):
-                cv2.imwrite('./%s/origin.png' % (video), frame)
-
-            if (int(cap.get(1)) % 30 == 0):
+            if int(cap.get(1)) == 1:
+                cv2.imwrite('./%s/origin.png' % video, frame)
+            else:
                 cv2.imwrite('./%s/frame%d.png' % (video, i), frame)
                 i += 1
 
@@ -50,8 +49,9 @@ def video_cap(video):
 
 # mse 구하는 함수
 def mse(image_a, image_b):
-    err = np.sum((image_a.astype('float') - image_b.astype('float')) ** 2)
-    err /= float(image_a.shape[0] * image_a.shape[1])
+    # err = np.sum((image_a.astype('float') - image_b.astype('float')) ** 2)
+    # err /= float(image_a.shape[0] * image_a.shape[1])
+    err = np.mean((image_a - image_b) ** 2)
 
     return err
 
@@ -67,7 +67,7 @@ def compare_image(video):
     origin = cv2.imread('./%s/origin.png' % (video))
     origin = cv2.cvtColor(origin, cv2.COLOR_BGR2GRAY)
     for j in range(0, video_cap(video)):
-        if j == 0 :
+        if j == 0:
             img = cv2.imread('./%s/frame%s.png' % (video, j))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -89,10 +89,11 @@ def compare_image(video):
         print("%s | mse : %f    ssim : %f" % (j, m[j], s[j]))
         print()
         # 임의로 정한 mse & ssim 조건
-        # mse 500이하, ssim 0.78 이상
-        if (m[j] > 100) and (s[j] < 0.96):
+        # mse 는 클수록 오차가 심함.
+        # ssim은 작을수록 오차가 심함.
+        if (m[j] > 4) and (s[j] < 0.99):
             frame.append(j)
             mse_val.append(m[j])
             ssim_val.append(s[j])
 
-    return frame, mse_val, ssim_val
+    return frame, mse_val, ssim_val, video_cap(video)
