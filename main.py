@@ -1,8 +1,12 @@
+import os
+import shutil
+
 import cv2
-print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
 import Comparer.main_sr as main_sr
+import frameToVideo
+
 
 # Yolo 로드
 def yolo(img):
@@ -15,8 +19,8 @@ def yolo(img):
     colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
     # 이미지 가져오기
-    # img = cv2.imread("sample7.png")
-    img = cv2.resize(img, None, fx=0.8, fy=0.8)
+    # img = cv2.resize(img, None, fx=0.8, fy=0.8)
+    img = cv2.resize(img, None, fx=1, fy=1)
     height, width, channels = img.shape
 
     # Detecting objects
@@ -42,7 +46,7 @@ def yolo(img):
                 # 좌표
                 x = int(center_x - w / 2)
                 y = int(center_y - h / 2)
-                if (w*h) >= 1000 :
+                if (w*h) >= 1000:
                     boxes.append([x, y, w, h])
                     confidences.append(float(confidence))
                     class_ids.append(class_id)
@@ -52,12 +56,14 @@ def yolo(img):
 
     font = cv2.FONT_HERSHEY_PLAIN
     xy = []
+    print("YOLO 좌표")
     for i in range(len(boxes)):
         if i in indexes:
             x, y, w, h = boxes[i]
             label = str(classes[class_ids[i]])
             color = colors[i]
-            if label == 'person':
+            if label == 'person' or label == 'car':
+                # 박스 그림.
                 cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
                 # cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
                 xy.append([x, y, x + w, y + h])
@@ -69,59 +75,46 @@ def yolo(img):
             # print(w, h) # 너비, 높이
             # cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
     # img = cv2.resize(img, None, fx=4, fy=4)
-    cv2.imshow("Image", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    plt.imshow(img[:, :, ::-1])
+    plt.show()
 
     return img, xy
 
 
-IMG_TRIM = []
+def crop(frame, x_start, y_start, x_end, y_end, IMG_TRIM):
 
-def crop(frame, x_start, y_start, x_end, y_end):
-
-    # 사진 이름 넣고 테스트
-    # image = cv2.imread('sample1.png')
-    # image = cv2.resize(frame, None, fx=0.4, fy=0.4)
-    # img_trim = image[y_start : y_end, x_start : x_end]
     img_trim = frame[y_start : y_end, x_start : x_end]
-    width, height, channel = img_trim.shape
-    print(width, height, channel)
-    # cv2.imshow('source', frame)
-    cv2.imshow('cut image', img_trim)
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('cut image', img_trim)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     IMG_TRIM.append(img_trim)
+    return IMG_TRIM
 
 
-def add(image, img_trim, x_start, y_start, x_end, y_end):
+def add(checked_frame, SR_img, x_start, y_start, x_end, y_end):
     # 자른 이미지를 소스 이미지에 붙인다.
-    # frame = cv2.resize(frame, None, fx=0.4, fy=0.4)
-    # print(x_start, y_start, x_end, y_end)
-    # cv2.imshow("zzz", img_trim)
-    # h,w,c = img_trim.shape
-    # print(h,w,c)
-    image[y_start: y_end, x_start: x_end] = img_trim
+    print("add function")
+    print(x_start, y_start, x_end, y_end) # yolo 박스 좌표
+
+    # 높이, 너비 순서
+    h,w,c = SR_img.shape # 박스 크기
+    print(h,w,c)
+    checked_frame[y_start: y_end, x_start: x_end] = SR_img
 
     # cv2.imshow("zz",image[y_start : y_end, x_start : x_end])
     # frame[y_start : y_end, x_start : x_end] = img_trim
 
-    #
-    # # 결과를 출력한다.
-    cv2.imshow('source', image)
-    #
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # 결과를 출력한다.
+    # cv2.imshow('frame added SR image', checked_frame)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     return 0
 
-SR_img = []
-def SR(img_trim):
 
-    # plt.imshow(img_trim[:,:,::-1])
-    # plt.show()
+def SR(img_trim, SR_img):
 
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
     path = "EDSR_x4.pb"
@@ -136,34 +129,53 @@ def SR(img_trim):
     # cv2.imwrite('frame1.png', result)
 
     # # Resized image
-    # resized = cv2.resize(img_trim, dsize=None, fx=4, fy=4)
+    # resized = cv2.resize(img_trim, None, fx=4, fy=4)
 
     plt.figure(figsize=(12, 8))
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 2, 1)
     # Original image
     plt.imshow(img_trim[:, :, ::-1])
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, 2, 2)
     # SR upscaled
     plt.imshow(result[:, :, ::-1])
-    # plt.subplot(1, 3, 3)
-    # # OpenCV upscaled
-    # plt.imshow(resized[:, :, ::-1])
     plt.show()
-    result = cv2.resize(result, None, fx=0.25, fy=0.25)
+
+    # result = cv2.resize(result, None, fx=0.25, fy=0.25)
     SR_img.append(result)
+    return SR_img
+
 
 if __name__ == '__main__':
-    frame,mse_val,ssim_val = main_sr.cp()
-    print(frame,mse_val,ssim_val)
-
+    frame, mse_val, ssim_val, video, total = main_sr.cp()
+    print(frame)
+    # frame=[1]
+    print("총 :", len(frame))
     for num in range(len(frame)):
-        checked_frame = cv2.imread("video3/frame%s.png" %frame[num])
-        image, xy = yolo(checked_frame)
-        for i in range(len(xy)):
-            crop(image, xy[i][0], xy[i][1], xy[i][2], xy[i][3])
-            SR(IMG_TRIM[i])
+        print("현재 : ", num)
+        IMG_TRIM = []
+        SR_img = []
+        checked_frame = cv2.imread("%s/frame%s.png" % (video, frame[num]))
+        # checked_frame = cv2.imread("video4/frame2.png")
 
-    # # # print(im.shape)
-    # # # print(image[1],image[2],image[3],image[4])
-    # for i in range(len(xy)):
-    #     add(image, SR_img[i], xy[i][0], xy[i][1], xy[i][2], xy[i][3])
+        image, xy = yolo(checked_frame)
+        # print("image : ", image.shape)
+
+        for i in range(len(xy)):
+            IMG_TRIM = crop(image, xy[i][0], xy[i][1], xy[i][2], xy[i][3], IMG_TRIM)
+            SR_img = SR(IMG_TRIM[i], SR_img)
+
+        plt.imshow(checked_frame[:, :, ::-1])
+        plt.show()
+        # cv2.imwrite('original.png', checked_frame)
+
+        resized_frame = cv2.resize(checked_frame, None, fx=4, fy=4)
+        for i in range(len(SR_img)):
+            add(resized_frame, SR_img[i], 4*xy[i][0], 4*xy[i][1], 4*xy[i][2], 4*xy[i][3])
+        plt.imshow(resized_frame[:, :, ::-1])
+        plt.show()
+        # cv2.imwrite('SR.png', resized_frame)
+        # exit(1)
+        cv2.imwrite('%s/frame%s.png' % (video, frame[num]), resized_frame)
+
+    frameToVideo.frameToVideo(video, frame)
+    shutil.rmtree('./{}/'.format(video))
