@@ -96,4 +96,4 @@ def compare_image(video):
             mse_val.append(m[j])
             ssim_val.append(s[j])
 
-    return frame, mse_val, ssim_val, video_cap(video)
+    return frame, mse_val, ssim_val
