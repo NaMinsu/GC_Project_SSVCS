@@ -1,5 +1,5 @@
-import os
 import shutil
+import argparse
 
 import cv2
 import numpy as np
@@ -9,13 +9,12 @@ import frameToVideo
 
 
 # Yolo 로드
-def yolo(img):
+def yolo(img, debug):
     net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
-    classes = []
     with open("coco.names", "r") as f:
         classes = [line.strip() for line in f.readlines()]
     layer_names = net.getLayerNames()
-    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+    output_layers = [layer_names[j - 1] for j in net.getUnconnectedOutLayers()]
     colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
     # 이미지 가져오기
@@ -75,15 +74,16 @@ def yolo(img):
             # print(w, h) # 너비, 높이
             # cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
     # img = cv2.resize(img, None, fx=4, fy=4)
-    plt.imshow(img[:, :, ::-1])
-    plt.show()
+    if debug:
+        plt.imshow(img[:, :, ::-1])
+        plt.show()
 
     return img, xy
 
 
 def crop(frame, x_start, y_start, x_end, y_end, IMG_TRIM):
 
-    img_trim = frame[y_start : y_end, x_start : x_end]
+    img_trim = frame[y_start: y_end, x_start: x_end]
 
     # cv2.imshow('cut image', img_trim)
     # cv2.waitKey(0)
@@ -99,8 +99,8 @@ def add(checked_frame, SR_img, x_start, y_start, x_end, y_end):
     print(x_start, y_start, x_end, y_end) # yolo 박스 좌표
 
     # 높이, 너비 순서
-    h,w,c = SR_img.shape # 박스 크기
-    print(h,w,c)
+    h, w, c = SR_img.shape  # 박스 크기
+    print(h, w, c)
     checked_frame[y_start: y_end, x_start: x_end] = SR_img
 
     # cv2.imshow("zz",image[y_start : y_end, x_start : x_end])
@@ -114,7 +114,7 @@ def add(checked_frame, SR_img, x_start, y_start, x_end, y_end):
     return 0
 
 
-def SR(img_trim, SR_img):
+def SR(img_trim, SR_img, debug):
 
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
     path = "EDSR_x4.pb"
@@ -134,11 +134,13 @@ def SR(img_trim, SR_img):
     plt.figure(figsize=(12, 8))
     plt.subplot(1, 2, 1)
     # Original image
-    plt.imshow(img_trim[:, :, ::-1])
+    if debug:
+        plt.imshow(img_trim[:, :, ::-1])
     plt.subplot(1, 2, 2)
     # SR upscaled
-    plt.imshow(result[:, :, ::-1])
-    plt.show()
+    if debug:
+        plt.imshow(result[:, :, ::-1])
+        plt.show()
 
     # result = cv2.resize(result, None, fx=0.25, fy=0.25)
     SR_img.append(result)
@@ -146,7 +148,12 @@ def SR(img_trim, SR_img):
 
 
 if __name__ == '__main__':
-    frame, mse_val, ssim_val, video, total = main_sr.cp()
+    parser = argparse.ArgumentParser(description="Image Super Resolution")
+    parser.add_argument('--video_name', type=str, help='test low resolution video name')
+    parser.add_argument('--mode', type=bool, default=False, help='select execute mode(False) or debug mode(True)')
+    opt = parser.parse_args()
+
+    frame, mse_val, ssim_val = main_sr.cp(opt.video_name)
     print(frame)
     # frame=[1]
     print("총 :", len(frame))
@@ -154,28 +161,27 @@ if __name__ == '__main__':
         print("현재 : ", num)
         IMG_TRIM = []
         SR_img = []
-        checked_frame = cv2.imread("%s/frame%s.png" % (video, frame[num]))
+        checked_frame = cv2.imread("%s/frame%s.png" % (opt.video_name, frame[num]))
         # checked_frame = cv2.imread("video4/frame2.png")
 
-        image, xy = yolo(checked_frame)
+        image, xy = yolo(checked_frame, opt.mode)
         # print("image : ", image.shape)
 
         for i in range(len(xy)):
             IMG_TRIM = crop(image, xy[i][0], xy[i][1], xy[i][2], xy[i][3], IMG_TRIM)
-            SR_img = SR(IMG_TRIM[i], SR_img)
+            SR_img = SR(IMG_TRIM[i], SR_img, opt.mode)
 
-        plt.imshow(checked_frame[:, :, ::-1])
-        plt.show()
-        # cv2.imwrite('original.png', checked_frame)
+        if opt.mode:
+            plt.imshow(checked_frame[:, :, ::-1])
+            plt.show()
 
         resized_frame = cv2.resize(checked_frame, None, fx=4, fy=4)
         for i in range(len(SR_img)):
             add(resized_frame, SR_img[i], 4*xy[i][0], 4*xy[i][1], 4*xy[i][2], 4*xy[i][3])
-        plt.imshow(resized_frame[:, :, ::-1])
-        plt.show()
-        # cv2.imwrite('SR.png', resized_frame)
-        # exit(1)
-        cv2.imwrite('%s/frame%s.png' % (video, frame[num]), resized_frame)
+        if opt.mode:
+            plt.imshow(resized_frame[:, :, ::-1])
+            plt.show()
+        cv2.imwrite('%s/frame%s.png' % (opt.video_name, frame[num]), resized_frame)
 
-    frameToVideo.frameToVideo(video, frame)
-    shutil.rmtree('./{}/'.format(video))
+    frameToVideo.frameToVideo(opt.video_name, frame)
+    shutil.rmtree('./{}/'.format(opt.video_name))
