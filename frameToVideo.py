@@ -7,7 +7,7 @@ import natsort
 def frameToVideo(fileName, checked_frame):
     # frame = cv.imread("video3/origin.png")
     # h, w, c = frame.shape
-    # video_name = './test.avi'
+    # video_name = './result.avi'
     # fourcc = cv.VideoWriter_fourcc(*'DIVX')
     # # 너비, 높이 순서
     # out = cv.VideoWriter(video_name, fourcc, 1.0, (w, h))
@@ -37,7 +37,7 @@ def frameToVideo(fileName, checked_frame):
     #     out.write(frame)
     #
     #     cnt += 1
-    video_name = './test.avi'
+    video_name = './result.avi'
     fourcc = cv.VideoWriter_fourcc(*'DIVX')
     fps = cv.VideoCapture('./Comparer/video/%s.mp4' % fileName).get(cv.CAP_PROP_FPS)
     frame = cv.imread("./{}/origin.png".format(fileName))
